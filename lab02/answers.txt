@@ -1,0 +1,121 @@
+
+* 
+*  E/15/138 M.M.M Irfan
+*  CO527 - Lab02
+*
+
+
+1) before indexing
+
+SELECT first_name from employees ORDER BY first_name ASC; 
+
++----------+------------+----------------------------------------------------------+
+| Query_ID | Duration   | Query                                                    |
++----------+------------+----------------------------------------------------------+
+|       10 | 0.23372000 | SELECT first_name from employees ORDER BY first_name ASC |
+
+
+2) after indexing
+
+CREATE INDEX fname_index ON employees(first_name);
+SELECT first_name from employees ORDER BY first_name ASC;
+
++----------+------------+----------------------------------------------------------+
+| Query_ID | Duration   | Query                                                    |
++----------+------------+----------------------------------------------------------+
+|       11 | 2.55076600 | CREATE INDEX fname_index ON employees(first_name)        |
+|       12 | 0.11855175 | SELECT first_name from employees ORDER BY first_name ASC |
++----------+------------+----------------------------------------------------------+
+ 
+ so it can be seen that after indexing the firstname we got arround 50% improvement in the execution time
+
+3)
+
+SHOW INDEX FROM employees;
+
++-----------+------------+-------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table     | Non_unique | Key_name    | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-----------+------------+-------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| employees |          0 | PRIMARY     |            1 | emp_no      | A         |      299886 |     NULL | NULL   |      | BTREE      |         |               |
+| employees |          1 | fname_index |            1 | first_name  | A         |        1266 |     NULL | NULL   |      | BTREE      |         |               |
++-----------+------------+-------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+
+it has used BTREE indexing technique
+
+4)
+
+CREATE UNIQUE INDEX employee_ix ON employees(emp_no,first_name,last_name);
+SELECT emp_no,first_name,last_name FROM employees;
+
++----------+------------+---------------------------------------------------------------------------+
+| Query_ID | Duration   | Query                                                                     |
++----------+------------+---------------------------------------------------------------------------+
+|       16 | 0.17880675 | select emp_no,first_name,last_name from employees                         |
++----------+------------+---------------------------------------------------------------------------+
+
+there has been a performance improvement with respect to Q1.it could be because of creating the unique index
+so that we dont get any duplicates.in Q1 there can be duplicates.
+
+
+5)
+
+-- A
+EXPLAIN select distinct emp_no from dept_manager where from_date>=
+'1985-01-01' and dept_no>= 'd005';
+-- B
+EXPLAIN select distinct emp_no from dept_manager where from_date>=
+'1996-01-03' and dept_no>= 'd005';
+-- C
+EXPLAIN select distinct emp_no from dept_manager where from_date>=
+'1985-01-01' and dept_no<= 'd009';
+
+
+ 1- Use dept_no as the index. since its inside the where clause.
+     indexing works best on those columns that are the
+     subject of the WHERE clauses in the commonly executed queries
+ 2- 
+ +----+-------------+--------------+------------+-------+----------------+---------+---------+------+------+----------+------------------------------+
+| id | select_type | table        | partitions | type  | possible_keys  | key     | key_len | ref  | rows | filtered | Extra                        |
++----+-------------+--------------+------------+-------+----------------+---------+---------+------+------+----------+------------------------------+
+|  1 | SIMPLE      | dept_manager | NULL       | range | PRIMARY,emp_no | PRIMARY | 4       | NULL |   24 |    33.33 | Using where; Using temporary |
++----+-------------+--------------+------------+-------+----------------+---------+---------+------+------+----------+------------------------------+    
+
+Mysql didnot used the index dept_no in all those 3 queries.
+
+the dept_manager table already has emp_no as a primary key in the indexes.so it makes use of emp_no since the select statement has emp_no in it.
+and dept_manager has only a composite primary key, so if it is used then we might need more space.
+And emp_no is diretcly referenceing the primary key it is used as the index
+
+6)
+
+Considering the relations,
+"department" and "dept_manager" has very less entries in it.
+it has very less chance to have more entires,even if it has enitres arround 1000, still comparatively its very small.
+so indexing these kind of small relations is not efficient.
+
+when considering the other relations,
+
+In "employees" relation
+ - the frequently used attributes were first_name,last_name,emp_no
+ - so indexing these attributes individually increase the performance
+
+In "departments" relation
+ - we can index dept_name column since its used in frequently.since the dept_no is a primary key,
+   it will also be included in the indexes.
+
+In "titles" relation
+ - most of the times, the emp_no column and title column are used together,so creating a single index with these
+   two columns will increase the performance
+
+In "dept_emp" relation
+ - most of the times, dept_no and emp_no columns are used together. so creating a single index with these two columns
+   will be efficient
+
+In "salaries" relation
+ - almost all the times, emp_no and salary are used together in many qureies.so creating indexes on these columns
+   will be efficient	 	 
+
+7)
+An index helps to speed up SELECT queries and WHERE clauses, but it slows down
+data input, with the UPDATE and the INSERT statements.Normally, Columns that are frequently manipulated should not be indexed,
+if the relation has frequent INSERT/UPDATE operations then it will slow down the writing process.
